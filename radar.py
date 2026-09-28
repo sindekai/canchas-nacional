@@ -1,7 +1,7 @@
-import requests
-import time
 import os
 import threading
+import time
+import requests
 from flask import Flask
 
 # --- CONFIGURACIONES ---
@@ -20,12 +20,12 @@ HEADERS = {
 QUINCE_MINUTOS = 15 * 60
 SEIS_DIAS = 6 * 24 * 60 * 60
 
-# --- SERVIDOR WEB FALSO PARA RENDER ---
+# --- SERVIDOR WEB PARA MANTENER ACTIVA LA INSTANCIA ---
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "¡Radar de canchas funcionando 24/7!"
+    return "¡Radar de canchas funcionando 24/7!", 200
 
 def mantener_vivo():
     port = int(os.environ.get("PORT", 10000))
@@ -38,7 +38,8 @@ def enviar_discord(cancha_nombre):
         "username": "Radar de Canchas"
     }
     try:
-        requests.post(WEBHOOK_URL, json=data)
+        # timeout=15 evita bloqueos si Discord demora en responder
+        requests.post(WEBHOOK_URL, json=data, timeout=15)
         print(f"[{time.strftime('%H:%M:%S')}] ¡Notificación enviada a Discord!")
     except Exception as e:
         print(f"Error enviando a Discord: {e}")
@@ -47,7 +48,9 @@ def monitorear_canchas():
     print("Iniciando Radar de Canchas en segundo plano...")
     while True:
         try:
-            response = requests.get(API_URL, headers=HEADERS)
+            # timeout=15 para evitar que el script se quede colgado si la API no responde
+            response = requests.get(API_URL, headers=HEADERS, timeout=15)
+            
             if response.status_code == 200:
                 datos = response.json()
                 canchas = datos.get('recordsNew', [])
@@ -72,15 +75,17 @@ def monitorear_canchas():
                 print(f"[{time.strftime('%H:%M:%S')}] Escaneo completado. Todo agotado.")
             else:
                 print(f"[{time.strftime('%H:%M:%S')}] Error en la API ({response.status_code}).")
+                
+        except requests.exceptions.RequestException as e:
+            print(f"[{time.strftime('%H:%M:%S')}] Error de red en el escaneo: {e}")
         except Exception as e:
-            print(f"Error en el ciclo de escaneo: {e}")
+            print(f"[{time.strftime('%H:%M:%S')}] Error imprevisto: {e}")
 
         time.sleep(QUINCE_MINUTOS)
 
 if __name__ == "__main__":
-    # Lanzar el radar en un hilo paralelo
-    hilo_radar = threading.Thread(target=monitorear_canchas)
+    # daemon=True garantiza que el hilo se gestione adecuadamente con el proceso principal
+    hilo_radar = threading.Thread(target=monitorear_canchas, daemon=True)
     hilo_radar.start()
     
-    # Iniciar el servidor web en el hilo principal
     mantener_vivo()
