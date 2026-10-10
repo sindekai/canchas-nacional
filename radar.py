@@ -18,7 +18,7 @@ HEADERS = {
 }
 
 QUINCE_MINUTOS = 15 * 60
-SEIS_DIAS = 6 * 24 * 60 * 60
+UNA_HORA = 60 * 60
 
 # --- SERVIDOR WEB PARA MANTENER ACTIVA LA INSTANCIA ---
 app = Flask(__name__)
@@ -68,8 +68,8 @@ def monitorear_canchas():
 
                 if encontrada_disponibilidad:
                     enviar_discord(cancha_detectada)
-                    print(f"[{time.strftime('%H:%M:%S')}] Cancha libre. Pausa de 6 días...")
-                    time.sleep(SEIS_DIAS)
+                    print(f"[{time.strftime('%H:%M:%S')}] Cancha libre detectada. Pausa de 1 hora...")
+                    time.sleep(UNA_HORA)
                     continue
 
                 print(f"[{time.strftime('%H:%M:%S')}] Escaneo completado. Todo agotado.")
@@ -84,7 +84,6 @@ def monitorear_canchas():
         time.sleep(QUINCE_MINUTOS)
 
 if __name__ == "__main__":
-    # daemon=True garantiza que el hilo se gestione adecuadamente con el proceso principal
     hilo_radar = threading.Thread(target=monitorear_canchas, daemon=True)
     hilo_radar.start()
     
